@@ -10,10 +10,6 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-import streamlit as st
-import os
-from dotenv import load_dotenv
-
 # **ローカルでは `.env` を読み込む**
 if os.path.exists(".env"):
     load_dotenv()
@@ -33,7 +29,7 @@ if "authenticated" not in st.session_state:
 
 # **ログイン画面**
 if not st.session_state["authenticated"]:
-    st.title("🔒 ログインが必要です")
+    st.title("ログイン画面")
     password_input = st.text_input("パスワードを入力してください:", type="password")
 
     if st.button("ログイン"):
