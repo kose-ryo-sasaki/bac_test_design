@@ -1,14 +1,78 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.colors as mcolors
 import seaborn as sns
-import openpyxl
 from openpyxl.styles import PatternFill, Border, Side
 from io import BytesIO
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+
+
+# **CSVファイルを作成**
+def create_csv_file(df):
+    output = BytesIO()
+    df.to_csv(output, index=False, encoding="utf-8-sig")
+    output.seek(0)  # **バッファの先頭に戻る**
+    return output
+
+
+# **Excelファイルを作成**
+def create_excel_file(df, color_data, color_map, file_name):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        wb = writer.book
+        ws = wb.create_sheet(title="9x12_Table")
+
+        # **1行目にファイル名と日付**
+        ws["A1"] = f"File: {file_name}"
+        ws["B1"] = f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        # **B2セルから列名 (1,2,3,...) を追加**
+        for j, col_name in enumerate(df.columns, start=2):  # B2, C2, D2...
+            ws.cell(row=2, column=j, value=col_name)
+
+        # **A3セルから行名 (A,B,C,...) を追加**
+        for i, row_name in enumerate(df.index, start=3):  # A3, A4, A5...
+            ws.cell(row=i, column=1, value=row_name)
+
+        # **B3セルからデータを入力**
+        for i, row in enumerate(df.index):
+            for j, col in enumerate(df.columns):
+                # データはB3から開始
+                cell = ws.cell(row=i + 3, column=j + 2, value=df.loc[row, col])
+                bac_value = color_data[i][j]
+
+                # **色を適用**
+                if bac_value in color_map:
+                    cell.fill = PatternFill(
+                        start_color=color_map[bac_value][1:],
+                        end_color=color_map[bac_value][1:],
+                        fill_type="solid"
+                        )
+
+                # **罫線を適用**
+                thin_border = Border(
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin")
+                    )
+                cell.border = thin_border
+
+        # **右側に系列情報を表示**
+        ws["O2"] = "Legend"
+        for i, (bac, color) in enumerate(color_map.items()):
+            ws.cell(row=i + 3, column=15, value=bac)
+            ws.cell(row=i + 3, column=16).fill = PatternFill(
+                start_color=color[1:],
+                end_color=color[1:],
+                fill_type="solid"
+                )
+
+    processed_data = output.getvalue()
+    return processed_data
+
 
 # **ローカルでは `.env` を読み込む**
 if os.path.exists(".env"):
@@ -20,7 +84,7 @@ else:
 
 # **Secrets にパスワードが設定されていない場合の処理**
 if PASSWORD is None:
-    st.error("🔐 パスワードが設定されていません！ `.env` または Streamlit Secrets に `PASSWORD` を追加してください。")
+    st.error("🔐 パスワードが設定されていません！")
     st.stop()
 
 # **セッションにログイン情報がない場合は初期化**
@@ -142,12 +206,20 @@ if uploaded_file is not None:
         # **9×12の表の行・列のインデックスを変更**
         row_labels = list("ABCDEFGHI")[:9]  # A, B, C, D, ...
         col_labels = list(range(1, 13))  # 1, 2, 3, ..., 12
-        reshaped_df = pd.DataFrame(table_data, index=row_labels, columns=col_labels)
+        reshaped_df = pd.DataFrame(
+            table_data,
+            index=row_labels,
+            columns=col_labels,
+            )
 
         # **色のマッピングを定義**
-        pastel_palette = sns.color_palette("pastel", len(df["bac"].unique()))  # `seaborn` のパステルカラー
+        pastel_palette = sns.color_palette("pastel", len(df["bac"].unique()))
         unique_bac = df["bac"].unique()
-        color_map = {bac: mcolors.to_hex(pastel_palette[i]) for i, bac in enumerate(unique_bac)}
+        color_map = {
+            bac: mcolors.to_hex(
+                pastel_palette[i]
+                ) for i, bac in enumerate(unique_bac)
+            }
 
         # **状態を保持**
         st.session_state["reshaped_df"] = reshaped_df
@@ -160,7 +232,8 @@ if st.session_state["reshaped_df"] is not None:
     st.write("### 試験データ表")
 
     # **系列（凡例）を表示**
-    legend_html = "".join([f'<div style="display: inline-block; width: 20px; height: 20px; background-color: {st.session_state["color_map"][bac]}; margin-right: 5px;"></div> {bac}' for bac in st.session_state["color_map"].keys()])
+    legend_html = "".join(
+        [f'<div style="display: inline-block; width: 20px; height: 20px; background-color: {st.session_state["color_map"][bac]}; margin-right: 5px;"></div> {bac}' for bac in st.session_state["color_map"].keys()])
     st.markdown(legend_html, unsafe_allow_html=True)
 
     # **表の表示（色付き）**
@@ -172,57 +245,6 @@ if st.session_state["reshaped_df"] is not None:
         axis=1
     )
     st.table(styled_df)
-
-# **CSVファイルを作成**
-def create_csv_file(df):
-    output = BytesIO()
-    df.to_csv(output, index=False, encoding="utf-8-sig")  # **CSVファイルをUTF-8（BOM付き）で保存**
-    output.seek(0)  # **バッファの先頭に戻る**
-    return output
-
-# **Excelファイルを作成**
-def create_excel_file(df, color_data, color_map, file_name):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        wb = writer.book
-        ws = wb.create_sheet(title="9x12_Table")
-
-        # **1行目にファイル名と日付**
-        ws["A1"] = f"File: {file_name}"
-        ws["B1"] = f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-
-        # **B2セルから列名 (1,2,3,...) を追加**
-        for j, col_name in enumerate(df.columns, start=2):  # B2, C2, D2...
-            ws.cell(row=2, column=j, value=col_name)
-
-        # **A3セルから行名 (A,B,C,...) を追加**
-        for i, row_name in enumerate(df.index, start=3):  # A3, A4, A5...
-            ws.cell(row=i, column=1, value=row_name)
-
-        # **B3セルからデータを入力**
-        for i, row in enumerate(df.index):
-            for j, col in enumerate(df.columns):
-                cell = ws.cell(row=i + 3, column=j + 2, value=df.loc[row, col])  # データはB3から開始
-                bac_value = color_data[i][j]
-
-                # **色を適用**
-                if bac_value in color_map:
-                    cell.fill = PatternFill(start_color=color_map[bac_value][1:], end_color=color_map[bac_value][1:], fill_type="solid")
-
-                # **罫線を適用**
-                thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
-                cell.border = thin_border
-
-        # **右側に系列情報を表示**
-        ws["O2"] = "Legend"
-        for i, (bac, color) in enumerate(color_map.items()):
-            ws.cell(row=i + 3, column=15, value=bac)
-            ws.cell(row=i + 3, column=16).fill = PatternFill(start_color=color[1:], end_color=color[1:], fill_type="solid")
-
-    processed_data = output.getvalue()
-    return processed_data
-
-
 
 # **CSVダウンロードボタン**
 if uploaded_file is not None:
@@ -241,10 +263,9 @@ if st.session_state["reshaped_df"] is not None and st.session_state["file_name"]
         data=create_excel_file(
             st.session_state["reshaped_df"],
             st.session_state["color_data"],
-            st.session_state["color_map"],  # ここで `color_map` を `session_state` から取得
+            st.session_state["color_map"],
             st.session_state["file_name"]
         ),
         file_name="9x12_table.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
