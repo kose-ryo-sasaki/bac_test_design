@@ -180,3 +180,6 @@ __pycache__/
 # VSCodeの設定ファイルを除外（オプション）
 .vscode/
 >>>>>>> 3039452 (Initial commit)
+memo.txt
+data
+testpage
