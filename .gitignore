@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -169,3 +170,13 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+=======
+# 仮想環境の除外
+.venv/
+
+# __pycache__ も不要なため除外
+__pycache__/
+
+# VSCodeの設定ファイルを除外（オプション）
+.vscode/
+>>>>>>> 3039452 (Initial commit)
