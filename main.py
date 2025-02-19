@@ -8,6 +8,38 @@ from openpyxl.styles import PatternFill, Border, Side
 from io import BytesIO
 from datetime import datetime
 
+import os
+from dotenv import load_dotenv
+
+# **.env ファイルを読み込む**
+load_dotenv()
+
+# **環境変数からパスワードを取得**
+PASSWORD = os.getenv("PASSWORD")
+
+# **Secrets にパスワードが設定されていない場合の処理**
+if PASSWORD is None:
+    st.error("🔐 パスワードが設定されていません！`.env` に `PASSWORD` を追加してください。")
+    st.stop()
+
+# **セッションにログイン情報がない場合は初期化**
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+# **ログイン画面**
+if not st.session_state["authenticated"]:
+    st.title("🔒 ログインが必要です")
+    password_input = st.text_input("パスワードを入力してください:", type="password")
+
+    if st.button("ログイン"):
+        if password_input == PASSWORD:  # **一致すればログイン成功**
+            st.session_state["authenticated"] = True
+            st.rerun()  # **ログイン後にリロード**
+        else:
+            st.error("パスワードが間違っています。")
+
+    st.stop()  # **ログイン成功しない限りアプリを進めない**
+
 # 🖥 ページのレイアウトをワイドに設定
 st.set_page_config(layout="wide")
 
