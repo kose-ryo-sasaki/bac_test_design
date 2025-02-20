@@ -145,13 +145,25 @@ st.title("Sample Matrix Sheet Creator")
 # CSVファイルのアップロード
 uploaded_file = st.file_uploader("CSVファイルをアップロードしてください", type=["csv"])
 
+results_df = None
+
 if uploaded_file is not None:
     # CSVをDataFrameに読み込む
     df = pd.read_csv(uploaded_file)
     st.session_state["file_name"] = uploaded_file.name  # アップロードしたファイル名
 
+    # **disp_name 列の追加**
+    df["disp_name"] = df.apply(
+        lambda row: f"{row['sample_name']}_{row['conc']}",
+        axis=1)
+
+    blank_options = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # **選択肢**
+    df["blank_flag"] = pd.Categorical(df["blank_flag"], categories=blank_options)
+
     # **ユーザーが編集可能なデータフレーム**
     edited_df = st.data_editor(df, num_rows="dynamic")
+
+
 
     # **変更を適用するボタン**
     if st.button("変更を適用"):
@@ -163,8 +175,14 @@ if uploaded_file is not None:
 
         row_idx, col_idx = 0, 0  # 9×12の表の配置用
 
+        row_labels = list("ABCDEFGHI")[:9]  # A, B, C, D, ...
+        col_labels = list(range(1, 13))  # 1, 2, 3, ..., 12
+
+        results = []
+
         # **データを処理**
         for _, row in df.iterrows():
+            sample_id = row["sample_id"]
             sample_name = row["sample_name"]
             conc = row["conc"]
             iter_size = row["iter"]  # iter のサイズ（試験回数）
@@ -179,6 +197,18 @@ if uploaded_file is not None:
                     col_idx = 0
                     if row_idx >= 9:  # 9行を超えたら終了
                         break
+                # **座標(A1, B2など)を決定**
+                cell_position = f"{row_labels[row_idx]}{col_labels[col_idx]}"
+
+                # **リストに情報を保存**
+                results.append({
+                    "sample_id": sample_id,
+                    "sample_name": sample_name,
+                    "bac": bac,
+                    "conc": conc,
+                    "iter": i,
+                    "position": cell_position
+                })
 
                 table_data[row_idx][col_idx] = f"{sample_name}_{conc}_{i}"
                 color_data[row_idx][col_idx] = bac  # `bac` を色識別用に格納
@@ -202,10 +232,10 @@ if uploaded_file is not None:
             # **9行を超えたら終了**
             if row_idx >= 9:
                 break
-
+    
+        results_df = pd.DataFrame(results)
+        
         # **9×12の表の行・列のインデックスを変更**
-        row_labels = list("ABCDEFGHI")[:9]  # A, B, C, D, ...
-        col_labels = list(range(1, 13))  # 1, 2, 3, ..., 12
         reshaped_df = pd.DataFrame(
             table_data,
             index=row_labels,
@@ -252,6 +282,15 @@ if uploaded_file is not None:
         label="修正後の元データをダウンロード",
         data=create_csv_file(edited_df),  # **修正後のデータをCSVとしてダウンロード**
         file_name="edited_data.csv",
+        mime="text/csv"
+    )
+
+# **CSVダウンロードボタン**
+if results_df is not None:
+    st.download_button(
+        label="試験座標データをダウンロード",
+        data=create_csv_file(results_df),  # **修正後のデータをCSVとしてダウンロード**
+        file_name="results.csv",
         mime="text/csv"
     )
 
