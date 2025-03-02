@@ -137,8 +137,6 @@ if uploaded_file is not None:
         lambda row: f"{row['sample_name']}_{row['conc']}_{row['iter_count']}",
         axis=1
     )
-    st.write("### 編集後元データ")
-    st.dataframe(df_updated)
 
     # **色付きの9×12表を作成**
     color_reshaped_df = pd.DataFrame("", index=row_labels, columns=col_labels)
@@ -180,6 +178,9 @@ if uploaded_file is not None:
     styled_df = color_reshaped_df.style.apply(apply_color, axis=None)  # axis=Noneで全体に適用
     st.table(styled_df)
 
+    st.write("### 編集後元データ")
+    st.dataframe(df_updated)
+    
     # **Excelファイルを作成**
     def create_excel_file(df, color_mapping, file_name):
         output = BytesIO()
